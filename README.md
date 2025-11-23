@@ -1,4 +1,3 @@
-# APP_JOSE-RAMON
 <!doctype html>
 <html lang="es">
 <head>
