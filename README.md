@@ -1,5 +1,4 @@
 # APP_JOSE-RAMON
-APP_FARMACIA HUPE
 <!doctype html>
 <html lang="es">
 <head>
