@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Medicamentos en faltas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <style>
+    :root {
+      --color-fondo: #f4f4f4;
+      --color-primario: #00695c;
+      --color-primario-suave: #e0f2f1;
+      --color-texto: #222;
+      --color-boton: #00897b;
+      --color-boton-texto: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--color-fondo);
+      color: var(--color-texto);
+    }
+
+    header {
+      background: var(--color-primario);
+      color: #ffffff;
+      padding: 0.75rem 1rem;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    nav {
+      display: flex;
+      gap: 0.25rem;
+      padding: 0.5rem;
+      background: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    nav button {
+      flex: 1;
+      border: none;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      border-radius: 0.5rem;
+      background: #eeeeee;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    nav button.activo {
+      background: var(--color-primario);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    main {
+      padding: 0.75rem;
+    }
+
+    .vista {
+      display: none;
+    }
+
+    .vista.activa {
+      display: block;
+    }
+
+    .tarjeta {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      margin-bottom: 0.15rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.4rem 0.5rem;
+      margin-bottom: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #cccccc;
+      font-size: 16px;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--color-primario-suave);
+      border-color: var(--color-primario);
+    }
+
+    #inputMedicamento,
+    #inputPersonal {
+      font-size: 16px;
+    }
+
+    .sugerencias {
+      position: relative;
+      margin-top: -0.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sugerencias-lista {
+      position: absolute;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 20;
+    }
+
+    .sugerencia-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.4rem 0.5rem;
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .sugerencia-item:hover {
+      background: var(--color-primario-suave);
+    }
+
+    .boton-primario {
+      width: 100%;
+      border: none;
+      padding: 0.6rem;
+      border-radius: 0.75rem;
+      background: var(--color-boton);
+      color: var(--color-boton-texto);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.25rem;
+    }
+
+    .boton-secundario {
+      border: 1px solid var(--color-primario);
+      background: #ffffff;
+      color: var(--color-primario);
+      padding: 0.45rem 0.6rem;
+      border-radius: 0.75rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin: 0.15rem 0.15rem 0.15rem 0;
+    }
+
+    .fila-config {
+      margin-bottom: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      font-size: 0.8rem;
+    }
+
+    .estado-config {
+      font-size: 0.75rem;
+      color: #555555;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+
+    th, td {
+      padding: 0.35rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    th {
+      background: #fafafa;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .tabla-contenedor {
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+
+    .texto-pequeno {
+      font-size: 0.75rem;
+      color: #555555;
+    }
+
+    .fila-acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.25rem;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header>
+    Medicamentos en faltas
+  </header>
+
+  <nav>
+    <button type="button" class="tab-btn activo" data-vista="vista-registrar">Registrar</button>
+    <button type="button" class="tab-btn" data-vista="vista-faltas">En falta</button>
+    <button type="button" class="tab-btn" data-vista="vista-configuracion">Configuración</button>
+  </nav>
+
+  <main>
+    <section id="vista-registrar" class="vista activa">
+      <div class="tarjeta">
+        <h2>Registrar falta</h2>
+        <label for="inputMedicamento">Medicamento</label>
+        <input id="inputMedicamento" type="text" autocomplete="off" placeholder="Escriba parte del nombre o código...">
+        <div class="sugerencias">
+          <div id="sugerenciasMedicamento" class="sugerencias-lista" style="display:none;"></div>
+        </div>
+
+        <label for="inputPersonal">Personal</label>
+        <input id="inputPersonal" type="text" autocomplete="off" placeholder="Escriba parte del nombre...">
+        <div class="sugerencias">
+          <div id="sugerenciasPersonal" class="sugerencias-lista" style="display:none;"></div>
+        </div>
+
+        <button type="button" id="btnRegistrarFalta" class="boton-primario">Registrar falta</button>
+        <p class="texto-pequeno">
+          La falta se guarda solo en este dispositivo (navegador) y podrá regularizarse desde la pestaña &laquo;En falta&raquo;.
+        </p>
+      </div>
+    </section>
+
+    <section id="vista-faltas" class="vista">
+      <div class="tarjeta">
+        <h2>Medicamentos en falta</h2>
+        <div class="tabla-contenedor">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Medicamento</th>
+                <th>Personal</th>
+                <th>Reg.</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyFaltas">
+            </tbody>
+          </table>
+        </div>
+        <div class="fila-acciones">
+          <button type="button" id="btnRegularizarSeleccionados" class="boton-primario">Regularizar seleccionados</button>
+          <button type="button" id="btnExportarFaltas" class="boton-secundario">Exportar a CSV</button>
+        </div>
+        <p class="texto-pequeno" id="resumenFaltas"></p>
+      </div>
+    </section>
+
+    <section id="vista-configuracion" class="vista">
+      <div class="tarjeta">
+        <h2>Configuración</h2>
+
+        <div class="fila-config">
+          <strong>Fichero de medicamentos</strong>
+          <div>
+            <button type="button" id="btnCargarMedicamentos" class="boton-secundario">Cargar fichero medicamentos</button>
+            <input type="file" id="fileMedicamentos" accept=".xlsx,.xls,.csv" style="display:none;">
+          </div>
+          <span class="estado-config" id="estadoMedicamentos">Ningún fichero cargado.</span>
+        </div>
+
+        <div class="fila-config">
+          <strong>Fichero de personal</strong>
+          <div>
+            <button type="button" id="btnCargarPersonal" class="boton-secundario">Cargar fichero personal</button>
+            <input type="file" id="filePersonal" accept=".xlsx,.xls,.csv" style="display:none;">
+          </div>
+          <span class="estado-config" id="estadoPersonal">Ningún fichero cargado.</span>
+        </div>
+
+        <div class="fila-config">
+          <strong>Registros guardados</strong>
+          <div class="fila-acciones">
+            <button type="button" id="btnBorrarFaltas" class="boton-secundario">Borrar faltas</button>
+            <button type="button" id="btnBorrarHistorico" class="boton-secundario">Borrar histórico</button>
+            <button type="button" id="btnBorrarTodo" class="boton-secundario">Borrar todo</button>
+          </div>
+          <span class="estado-config texto-pequeno" id="estadoRegistros"></span>
+        </div>
+
+        <p class="texto-pequeno">
+          Los datos se guardan en el almacenamiento local del navegador del dispositivo. Si borra los datos o cambia de móvil, se perderán.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Datos en memoria
+    let medicamentos = [];
+    let personal = [];
+    let faltas = [];
+    let historicoFaltas = [];
+
+    function cargarDesdeLocalStorage() {
+      try {
+        const meds = localStorage.getItem('medicamentosExcel');
+        const pers = localStorage.getItem('personalExcel');
+        const f = localStorage.getItem('faltas');
+        const h = localStorage.getItem('faltasHistorico');
+
+        medicamentos = meds ? JSON.parse(meds) : [];
+        personal = pers ? JSON.parse(pers) : [];
+        faltas = f ? JSON.parse(f) : [];
+        historicoFaltas = h ? JSON.parse(h) : [];
+      } catch (e) {
+        console.error('Error al leer localStorage', e);
+        medicamentos = [];
+        personal = [];
+        faltas = [];
+        historicoFaltas = [];
+      }
+    }
+
+    function guardarEnLocalStorage() {
+      localStorage.setItem('medicamentosExcel', JSON.stringify(medicamentos));
+      localStorage.setItem('personalExcel', JSON.stringify(personal));
+      localStorage.setItem('faltas', JSON.stringify(faltas));
+      localStorage.setItem('faltasHistorico', JSON.stringify(historicoFaltas));
+      actualizarEstados();
+    }
+
+    function actualizarEstados() {
+      const estadoMeds = document.getElementById('estadoMedicamentos');
+      const estadoPers = document.getElementById('estadoPersonal');
+      const estadoRegs = document.getElementById('estadoRegistros');
+      const resumenFaltas = document.getElementById('resumenFaltas');
+
+      if (estadoMeds) {
+        estadoMeds.textContent = medicamentos.length
+          ? 'Registros de medicamentos cargados: ' + medicamentos.length
+          : 'Ningún fichero cargado.';
+      }
+      if (estadoPers) {
+        estadoPers.textContent = personal.length
+          ? 'Registros de personal cargados: ' + personal.length
+          : 'Ningún fichero cargado.';
+      }
+      if (estadoRegs) {
+        estadoRegs.textContent = 'Faltas activas: ' + faltas.filter(f => f.estado === 'abierta').length +
+          ' · Histórico: ' + historicoFaltas.length;
+      }
+      if (resumenFaltas) {
+        resumenFaltas.textContent = 'Faltas activas: ' + faltas.filter(f => f.estado === 'abierta').length;
+      }
+    }
+
+    function leerExcel(archivo, callback) {
+      const nombre = archivo.name.toLowerCase();
+      if (nombre.endsWith('.csv')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const texto = e.target.result;
+          const lineas = texto.split(/\r?\n/).filter(l => l.trim() !== '');
+          if (!lineas.length) {
+            callback([]);
+            return;
+          }
+          const cabeceras = lineas[0].split(';').length > 1
+            ? lineas[0].split(';')
+            : lineas[0].split(',');
+          const datos = [];
+          for (let i = 1; i < lineas.length; i++) {
+            const partes = lineas[i].split(';').length > 1
+              ? lineas[i].split(';')
+              : lineas[i].split(',');
+            const obj = {};
+            cabeceras.forEach((cab, idx) => {
+              obj[cab.trim()] = (partes[idx] || '').trim();
+            });
+            datos.push(obj);
+          }
+          callback(datos);
+        };
+        reader.readAsText(archivo, 'utf-8');
+      } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const hoja = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(hoja, { defval: '' });
+            callback(json);
+          } catch (err) {
+            console.error('Error al leer el Excel', err);
+            alert('No se ha podido leer el fichero. Revise que sea un Excel o CSV válido.');
+            callback([]);
+          }
+        };
+        reader.readAsArrayBuffer(archivo);
+      }
+    }
+
+    function textoGenericoRegistro(registro, camposPreferidos) {
+      const partes = [];
+      camposPreferidos.forEach(c => {
+        if (registro[c] !== undefined && String(registro[c]).trim() !== '') {
+          partes.push(String(registro[c]).trim());
+        }
+      });
+      if (!partes.length) {
+        for (const clave in registro) {
+          if (Object.prototype.hasOwnProperty.call(registro, clave)) {
+            const valor = registro[clave];
+            if (valor !== null && valor !== undefined && String(valor).trim() !== '') {
+              partes.push(String(valor).trim());
+            }
+            if (partes.length >= 3) {
+              break;
+            }
+          }
+        }
+      }
+      return partes.join(' · ');
+    }
+
+    function textoMedicamento(registro) {
+      const campos = [
+        'CODIHOSPI', 'Codihospi', 'Cod hospi', 'COD HOSPI',
+        'CN', 'CÓDIGO NACIONAL', 'Codigo nacional', 'Código nacional',
+        'REGISTRADO', 'Registrado',
+        'NOMBRE', 'Nombre', 'Nombre comercial', 'Medicamento'
+      ];
+      return textoGenericoRegistro(registro, campos);
+    }
+
+    function textoPersonal(registro) {
+      const campos = [
+        'NOMBRE', 'Nombre',
+        'APELLIDOS', 'Apellidos',
+        'PROFESION', 'Profesión',
+        'CATEGORIA', 'Categoría'
+      ];
+      return textoGenericoRegistro(registro, campos);
+    }
+
+    function buscarCoincidencias(lista, texto, esMedicamento) {
+      const t = texto.toLowerCase().trim();
+      if (!t) {
+        return [];
+      }
+      const resultado = [];
+      for (let i = 0; i < lista.length; i++) {
+        const reg = lista[i];
+        let coincide = false;
+        for (const clave in reg) {
+          if (Object.prototype.hasOwnProperty.call(reg, clave)) {
+            const valor = reg[clave];
+            if (typeof valor === 'string' && valor.toLowerCase().includes(t)) {
+              coincide = true;
+              break;
+            }
+          }
+        }
+        if (coincide) {
+          resultado.push({ indice: i, registro: reg });
+          if (resultado.length >= 25) {
+            break;
+          }
+        }
+      }
+      return resultado;
+    }
+
+    function mostrarSugerencias(listaCoincidencias, contenedorId, esMedicamento) {
+      const contenedor = document.getElementById(contenedorId);
+      if (!contenedor) return;
+      contenedor.innerHTML = '';
+      if (!listaCoincidencias.length) {
+        contenedor.style.display = 'none';
+        return;
+      }
+      listaCoincidencias.forEach(item => {
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'sugerencia-item';
+        boton.textContent = esMedicamento
+          ? textoMedicamento(item.registro)
+          : textoPersonal(item.registro);
+        boton.addEventListener('click', () => {
+          if (esMedicamento) {
+            const input = document.getElementById('inputMedicamento');
+            input.value = textoMedicamento(item.registro);
+            input.dataset.indice = String(item.indice);
+          } else {
+            const input = document.getElementById('inputPersonal');
+            input.value = textoPersonal(item.registro);
+            input.dataset.indice = String(item.indice);
+          }
+          contenedor.innerHTML = '';
+          contenedor.style.display = 'none';
+        });
+        contenedor.appendChild(boton);
+      });
+      contenedor.style.display = 'block';
+    }
+
+    function limpiarSugerencias() {
+      const contM = document.getElementById('sugerenciasMedicamento');
+      const contP = document.getElementById('sugerenciasPersonal');
+      if (contM) {
+        contM.innerHTML = '';
+        contM.style.display = 'none';
+      }
+      if (contP) {
+        contP.innerHTML = '';
+        contP.style.display = 'none';
+      }
+    }
+
+    function pintarTablaFaltas() {
+      const tbody = document.getElementById('tbodyFaltas');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      const abiertas = faltas.filter(f => f.estado === 'abierta');
+      abiertas.forEach(f => {
+        const tr = document.createElement('tr');
+        const tdFecha = document.createElement('td');
+        const tdMed = document.createElement('td');
+        const tdPers = document.createElement('td');
+        const tdChk = document.createElement('td');
+
+        tdFecha.textContent = f.fecha || '';
+        tdMed.textContent = f.medicamentoTexto || '';
+        tdPers.textContent = f.personalTexto || '';
+
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'chk-regularizar';
+        chk.dataset.id = String(f.id);
+        tdChk.appendChild(chk);
+
+        tr.appendChild(tdFecha);
+        tr.appendChild(tdMed);
+        tr.appendChild(tdPers);
+        tr.appendChild(tdChk);
+        tbody.appendChild(tr);
+      });
+      actualizarEstados();
+    }
+
+    function exportarFaltasCSV() {
+      if (!faltas.length) {
+        alert('No hay faltas para exportar.');
+        return;
+      }
+      const cabeceras = [
+        'id',
+        'fecha',
+        'medicamentoTexto',
+        'personalTexto',
+        'estado',
+        'fechaRegularizacion'
+      ];
+      const filas = [cabeceras.join(';')];
+      faltas.forEach(f => {
+        const fila = [
+          f.id,
+          f.fecha || '',
+          (f.medicamentoTexto || '').replace(/;/g, ','),
+          (f.personalTexto || '').replace(/;/g, ','),
+          f.estado || '',
+          f.fechaRegularizacion || ''
+        ];
+        filas.push(fila.join(';'));
+      });
+      const blob = new Blob([filas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fecha = new Date().toISOString().slice(0,10);
+      a.download = 'faltas_medicamentos_' + fecha + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function registrarFalta() {
+      const inputMed = document.getElementById('inputMedicamento');
+      const inputPer = document.getElementById('inputPersonal');
+      const indiceMed = inputMed.dataset.indice !== undefined ? parseInt(inputMed.dataset.indice, 10) : NaN;
+      const indicePer = inputPer.dataset.indice !== undefined ? parseInt(inputPer.dataset.indice, 10) : NaN;
+
+      if (!medicamentos.length) {
+        alert('Antes debe cargar el fichero de medicamentos en Configuración.');
+        return;
+      }
+      if (!inputMed.value.trim()) {
+        alert('Indique un medicamento.');
+        return;
+      }
+      if (isNaN(indiceMed) || !medicamentos[indiceMed]) {
+        alert('Seleccione un medicamento de la lista de sugerencias.');
+        return;
+      }
+
+      const medRegistro = medicamentos[indiceMed];
+      const perRegistro = (!isNaN(indicePer) && personal[indicePer]) ? personal[indicePer] : null;
+
+      const hoy = new Date().toISOString().slice(0,10);
+      const falta = {
+        id: Date.now(),
+        fecha: hoy,
+        medicamento: medRegistro,
+        medicamentoTexto: textoMedicamento(medRegistro),
+        personal: perRegistro,
+        personalTexto: perRegistro ? textoPersonal(perRegistro) : '',
+        estado: 'abierta',
+        fechaRegularizacion: ''
+      };
+      faltas.push(falta);
+      guardarEnLocalStorage();
+      pintarTablaFaltas();
+
+      inputMed.value = '';
+      inputPer.value = '';
+      delete inputMed.dataset.indice;
+      delete inputPer.dataset.indice;
+      limpiarSugerencias();
+      alert('Falta registrada.');
+    }
+
+    function regularizarSeleccionados() {
+      const checks = document.querySelectorAll('.chk-regularizar:checked');
+      if (!checks.length) {
+        alert('Seleccione al menos un medicamento para regularizar.');
+        return;
+      }
+      const ids = Array.from(checks).map(chk => chk.dataset.id);
+      const hoy = new Date().toISOString().slice(0,10);
+      const nuevasFaltas = [];
+      faltas.forEach(f => {
+        if (ids.includes(String(f.id))) {
+          f.estado = 'regularizada';
+          f.fechaRegularizacion = hoy;
+          historicoFaltas.push(f);
+        } else {
+          nuevasFaltas.push(f);
+        }
+      });
+      faltas = nuevasFaltas;
+      guardarEnLocalStorage();
+      pintarTablaFaltas();
+      alert('Faltas regularizadas.');
+    }
+
+    function borrarFaltas() {
+      if (!confirm('¿Seguro que desea borrar todas las faltas activas?')) {
+        return;
+      }
+      faltas = [];
+      guardarEnLocalStorage();
+      pintarTablaFaltas();
+    }
+
+    function borrarHistorico() {
+      if (!confirm('¿Seguro que desea borrar todo el histórico de faltas?')) {
+        return;
+      }
+      historicoFaltas = [];
+      guardarEnLocalStorage();
+    }
+
+    function borrarTodo() {
+      if (!confirm('¿Seguro que desea borrar faltas, histórico y ficheros de medicamentos/personal?')) {
+        return;
+      }
+      medicamentos = [];
+      personal = [];
+      faltas = [];
+      historicoFaltas = [];
+      guardarEnLocalStorage();
+      actualizarEstados();
+      pintarTablaFaltas();
+    }
+
+    function prepararNavegacion() {
+      const botones = document.querySelectorAll('.tab-btn');
+      botones.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const vistaId = btn.dataset.vista;
+          document.querySelectorAll('.vista').forEach(v => {
+            v.classList.remove('activa');
+          });
+          const destino = document.getElementById(vistaId);
+          if (destino) {
+            destino.classList.add('activa');
+          }
+          botones.forEach(b => b.classList.remove('activo'));
+          btn.classList.add('activo');
+          limpiarSugerencias();
+        });
+      });
+    }
+
+    function prepararConfiguracion() {
+      const btnCargarMeds = document.getElementById('btnCargarMedicamentos');
+      const inputMeds = document.getElementById('fileMedicamentos');
+      const btnCargarPers = document.getElementById('btnCargarPersonal');
+      const inputPers = document.getElementById('filePersonal');
+
+      if (btnCargarMeds && inputMeds) {
+        btnCargarMeds.addEventListener('click', () => inputMeds.click());
+        inputMeds.addEventListener('change', (e) => {
+          const archivo = e.target.files && e.target.files[0];
+          if (!archivo) return;
+          leerExcel(archivo, (datos) => {
+            medicamentos = datos || [];
+            guardarEnLocalStorage();
+            actualizarEstados();
+            alert('Fichero de medicamentos cargado (' + medicamentos.length + ' registros).');
+          });
+          inputMeds.value = '';
+        });
+      }
+
+      if (btnCargarPers && inputPers) {
+        btnCargarPers.addEventListener('click', () => inputPers.click());
+        inputPers.addEventListener('change', (e) => {
+          const archivo = e.target.files && e.target.files[0];
+          if (!archivo) return;
+          leerExcel(archivo, (datos) => {
+            personal = datos || [];
+            guardarEnLocalStorage();
+            actualizarEstados();
+            alert('Fichero de personal cargado (' + personal.length + ' registros).');
+          });
+          inputPers.value = '';
+        });
+      }
+
+      const btnBF = document.getElementById('btnBorrarFaltas');
+      const btnBH = document.getElementById('btnBorrarHistorico');
+      const btnBT = document.getElementById('btnBorrarTodo');
+      if (btnBF) btnBF.addEventListener('click', borrarFaltas);
+      if (btnBH) btnBH.addEventListener('click', borrarHistorico);
+      if (btnBT) btnBT.addEventListener('click', borrarTodo);
+    }
+
+    function prepararFormulario() {
+      const inputMed = document.getElementById('inputMedicamento');
+      const inputPer = document.getElementById('inputPersonal');
+      const btnRegistrar = document.getElementById('btnRegistrarFalta');
+      const btnExportar = document.getElementById('btnExportarFaltas');
+      const btnRegularizar = document.getElementById('btnRegularizarSeleccionados');
+
+      if (inputMed) {
+        inputMed.addEventListener('input', () => {
+          delete inputMed.dataset.indice;
+          const texto = inputMed.value;
+          const coincidencias = buscarCoincidencias(medicamentos, texto, true);
+          mostrarSugerencias(coincidencias, 'sugerenciasMedicamento', true);
+        });
+        inputMed.addEventListener('blur', () => {
+          setTimeout(limpiarSugerencias, 200);
+        });
+      }
+
+      if (inputPer) {
+        inputPer.addEventListener('input', () => {
+          delete inputPer.dataset.indice;
+          const texto = inputPer.value;
+          const coincidencias = buscarCoincidencias(personal, texto, false);
+          mostrarSugerencias(coincidencias, 'sugerenciasPersonal', false);
+        });
+        inputPer.addEventListener('blur', () => {
+          setTimeout(limpiarSugerencias, 200);
+        });
+      }
+
+      if (btnRegistrar) {
+        btnRegistrar.addEventListener('click', registrarFalta);
+      }
+      if (btnExportar) {
+        btnExportar.addEventListener('click', exportarFaltasCSV);
+      }
+      if (btnRegularizar) {
+        btnRegularizar.addEventListener('click', regularizarSeleccionados);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarDesdeLocalStorage();
+      actualizarEstados();
+      pintarTablaFaltas();
+      prepararNavegacion();
+      prepararConfiguracion();
+      prepararFormulario();
+    });
+  </script>
+</body>
+</html>
